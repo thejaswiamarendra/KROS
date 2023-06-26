@@ -33,7 +33,7 @@ class LatencyPub:
 		
 
 if __name__ == "__main__":
-	publ = LatencyPub(1, 'PubNode', 'messageTopic', list(range(51, 99952, 500)))
+	publ = LatencyPub(1, 'PubNode', 'messageTopic', list(range(51, 99952, 1000)))
 	try:
 		publ.messagePublisher()
 	except rospy.ROSInterruptException:
