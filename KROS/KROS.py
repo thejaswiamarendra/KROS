@@ -96,14 +96,21 @@ class KROSpublisher:
 			If there is no cloud Publisher just publish the values locally else publish both locally and over cloud.
 		'''
 		if !self.cloudPublisher:
-			while not rospy.is_shutdown():
+			try:
 				rospy.loginfo(message)
 				self.localPublisher.publish(message)
+			except Exception as e:
+				print("Error while publishing locally ", e)
 		else:
-			while not rospy.is_shutdown():
+			try:
 				rospy.loginfo(message)
 				self.localPublisher.publish(message)
+			except Exception as e:
+				print("Error while publishing locally ", e)
+			try: 
 				self.cloudPublisher.send(self.topic, message)
+			except Exception as e:
+				print("Error while publishing over cloud ", e)
 	
 	def startRoscore(self):
 		roscore = Roscore()
