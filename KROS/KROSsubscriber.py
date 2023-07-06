@@ -5,17 +5,17 @@ import time
 import json
 import os
 from Roscore import Roscore	
-
+import threading
 
 
 '''
 cloud_conf = {
-    'bootstrap.servers': 'pkc-41p56.asia-south1.gcp.confluent.cloud:9092',
-    'sasl.username': 'J2LXJ2BZT5ZA63EE',
-    'sasl.password': 'qrnWDawOdsWxJ/l2i/LOX6yFsX+RFS9Hs2EYQHi/p0wcTVfxlX2FxlmLPBKdABTX',
-    'security.protocol': 'SASL_SSL',
-    'sasl.mechanism': 'PLAIN',
-    'value.serializer':lambda x: json.dumps(x).encode('utf-8')
+            'bootstrap.servers': 'pkc-41p56.asia-south1.gcp.confluent.cloud:9092',
+            'sasl.username': 'J2LXJ2BZT5ZA63EE',
+            'sasl.password': 'qrnWDawOdsWxJ/l2i/LOX6yFsX+RFS9Hs2EYQHi/p0wcTVfxlX2FxlmLPBKdABTX',
+            'security.protocol': 'SASL_SSL',
+            'sasl.mechanism': 'PLAIN',
+            'value.deserializer':lambda x: x.decode('utf-8')
         }
 '''
 
@@ -26,7 +26,7 @@ LAN_conf = {
 	}
 '''
 
-class KROSpublisher:
+class KROSsubscriber:
 	'''
 		KROSpublisher - Publishes messages on a topic locally, over a network and over cloud. 
 		Messages are published locally and over a network using ROS, but over cloud using Kafka.
@@ -40,26 +40,28 @@ class KROSpublisher:
 	nodeNames = [0] 
 	
 	def __init__(self, cloud_conf = None, LAN_conf = {'ROS_MASTER_URI' = https://localhost:11311,
-							'ROS_HOSTNAME' = localhost}, topic = None, local_queue_size = 10, msg_class = String):
+							'ROS_HOSTNAME' = localhost}, topic = None, callback = None, msg_class = String):
 		self.topic = topic
-		self.local_queue_size = local_queue_size
 		self.msg_class = msg_class
+		self.callback = local_callback
+		self.cloud_conf = cloud_conf
 		'''
 			Only create a Kafka-Cloud Publisher if cloud_conf is not None. The format for the cloud_conf is given earlier in this file.
 		'''
 		if !cloud_conf:
 			try:
-				self.cloudPublisher = KafkaProducer(bootstrap_servers=conf['bootstrap.servers'],
-				         sasl_plain_username=cloud_conf['sasl.username'],
-				         sasl_plain_password=cloud_conf['sasl.password'],
-				         security_protocol=cloud_conf['security.protocol'],
-				         sasl_mechanism=cloud_conf['sasl.mechanism'],
-				         value_serializer=cloud_conf['value.serializer'])
+				self.cloudSubscriber = KafkaConsumer(self.topic,
+				                 bootstrap_servers=self.cloud_conf['bootstrap.servers'],
+				                 sasl_plain_username=self.cloud_conf['sasl.username'],
+				                 sasl_plain_password=self.cloud_conf['sasl.password'],
+				                 security_protocol=self.cloud_conf['security.protocol'],
+				                 sasl_mechanism=self.cloud_conf['sasl.mechanism'],
+				                 value_deserializer=self.cloud_conf['value.deserializer'])
 			except Exception as e:
-				print("Error while creating cloud Publisher ", e)
+				print("Error while creating Cloud Subscriber ", e)
 				        
 		else:
-			self.cloudPublisher = None
+			self.cloudSubscriber = None
 			
 			
 			
@@ -69,11 +71,6 @@ class KROSpublisher:
 		
 		os.environ['ROS_MASTER_URI'] = LAN_conf['ROS_MASTER_URI']
 		os.environ['ROS_HOSTNAME'] = LAN_conf['ROS_HOSTNAME']
-		
-		try:
-			self.localPublisher = rospy.Publisher(self.topic, msg_class = self.msg_class, queue_size = self.local_queue_size)
-		except Exception as e:
-			print("Error while creating local publisher ", e)
 	
 		
 		'''
@@ -91,27 +88,42 @@ class KROSpublisher:
 		if(!Roscore.__initialised):
 			self.startRoscore()
 		
-	def publish(self, message):
-		'''
-			If there is no cloud Publisher just publish the values locally else publish both locally and over cloud.
-		'''
-		if !self.cloudPublisher:
-			try:
-				rospy.loginfo(message)
-				self.localPublisher.publish(message)
-			except Exception as e:
-				print("Error while publishing locally ", e)
-		else:
-			try:
-				rospy.loginfo(message)
-				self.localPublisher.publish(message)
-			except Exception as e:
-				print("Error while publishing locally ", e)
-			try: 
-				self.cloudPublisher.send(self.topic, message)
-			except Exception as e:
-				print("Error while publishing over cloud ", e)
+	def subscribe(self):
+		rospy.Subscriber(self.topic, String, self.callback)
+		kafka_thread = threading.Thread(target=self.subscriber_cloud)
+		kafka_thread.start()
+		rospy.spin()
 	
+	def subscriber_cloud(self):
+		try:
+			for message in consumer:
+				if message is None:
+					continue
+
+				if message.error():
+		# Error occurred while consuming message
+					error = message.error()
+				if error.code() == KafkaError._PARTITION_EOF:
+		# End of partition, continue consuming
+					continue
+				else:
+		# Handle other Kafka errors
+					print('Error: {}'.format(error))
+					break
+
+		# Process Kafka message here
+			if(callback is None):
+				print('Received message: {}'.format(message.value.decode('utf-8')))
+			else:
+				self.callback(message)
+
+		except KeyboardInterrupt:
+		# User interrupted the consumer
+			print('Consumer interrupted')
+
+		finally:
+		# Close Kafka consumer
+			consumer.close()
 	def startRoscore(self):
 		roscore = Roscore()
 		roscore.run()
@@ -136,7 +148,7 @@ class KROSpublisher:
 		
 	def get_cloud_conf(self):
 		return self.cloud_conf
-	
+
 			
 			
 		
