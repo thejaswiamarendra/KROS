@@ -75,7 +75,8 @@ class KROSsubscriber:
 		'''
 		self.nodeName = "KROSpub" + str(KROSsubscriber.nodeNames[-1])
 		KROSsubscriber.nodeNames.append(KROSsubscriber.nodeNames[-1]+1)
-		rospy.init_node(self.nodeName, anonymous = True, log_level=rospy.INFO, disable_signals=False)
+		if self.local_callback is not None:
+			rospy.init_node(self.nodeName, anonymous = True, log_level=rospy.INFO, disable_signals=False)
 		
 		
 		
@@ -85,13 +86,27 @@ class KROSsubscriber:
 		
 		
 	def subscribe(self):
-		try:
-			rospy.Subscriber(self.topic, String, self.local_callback)
-			kafka_thread = threading.Thread(target=self.subscriber_cloud)
-			kafka_thread.start()
-		except KeyboardInterrupt as e:
-			exit(0)
-		#rospy.spin()
+		if self.local_callback is None:
+			try:
+				kafka_thread = threading.Thread(target=self.subscriber_cloud)
+				kafka_thread.start()
+			except KeyboardInterrupt as e:
+				exit(0)
+		elif self.cloudSubscriber is None:
+			try:
+				rospy.Subscriber(self.topic, String, self.local_callback)
+				rospy.spin()
+			except KeyboardInterrupt as e:
+				exit(0)
+		else:
+			try:
+				rospy.Subscriber(self.topic, String, self.local_callback)
+				kafka_thread = threading.Thread(target=self.subscriber_cloud)
+				kafka_thread.start()
+				rospy.spin()
+			except KeyboardInterrupt as e:
+				exit(0)
+			
 	
 	def subscriber_cloud(self):
 		try:

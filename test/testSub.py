@@ -15,6 +15,6 @@ if __name__ == "__main__":
             'value.deserializer':lambda x: x.decode('utf-8')
         }
         
-	ksub = KROSsubscriber(cloud_conf = cloud_conf, topic = "topic0", local_callback = f1, cloud_callback = f2)
+	ksub = KROSsubscriber(cloud_conf = cloud_conf, topic = "topic0", local_callback = None, cloud_callback = f2)
 	
 	ksub.subscribe()
