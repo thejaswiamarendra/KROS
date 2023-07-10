@@ -1,10 +1,9 @@
 import rospy
-from kafka improt KafkaProducer, KafkaConsumer
+from kafka import KafkaProducer, KafkaConsumer
 from std_msgs.msg import String
 import time
 import json
-import os
-from Roscore import Roscore	
+import os	
 import threading
 
 
@@ -39,16 +38,16 @@ class KROSsubscriber:
 	'''
 	nodeNames = [0] 
 	
-	def __init__(self, cloud_conf = None, LAN_conf = {'ROS_MASTER_URI' = https://localhost:11311,
-							'ROS_HOSTNAME' = localhost}, topic = None, callback = None, msg_class = String):
+	def __init__(self, cloud_conf = None, topic = None, local_callback = None, cloud_callback = None, msg_class = String):
 		self.topic = topic
 		self.msg_class = msg_class
-		self.callback = local_callback
+		self.local_callback = local_callback
+		self.cloud_callback = cloud_callback
 		self.cloud_conf = cloud_conf
 		'''
 			Only create a Kafka-Cloud Publisher if cloud_conf is not None. The format for the cloud_conf is given earlier in this file.
 		'''
-		if !cloud_conf:
+		if cloud_conf is not None:
 			try:
 				self.cloudSubscriber = KafkaConsumer(self.topic,
 				                 bootstrap_servers=self.cloud_conf['bootstrap.servers'],
@@ -69,53 +68,70 @@ class KROSsubscriber:
 			LAN_conf is to configure the ROS master node IP address. By default it is set to localhost, but can be changed accordingly.
 		'''
 		
-		os.environ['ROS_MASTER_URI'] = LAN_conf['ROS_MASTER_URI']
-		os.environ['ROS_HOSTNAME'] = LAN_conf['ROS_HOSTNAME']
 	
 		
 		'''
 			Create a unique nodeName using the static list
 		'''
-		self.nodeName = "KROSpub" + str(nodeNames[-1])
-		nodeNames.append(self.nodeNames[-1]+1)
-		rospy.init_node(self.nodeName, anonymous = True, log_level=rospy.INFO, disable_signals=False)
+		self.nodeName = "KROSpub" + str(KROSsubscriber.nodeNames[-1])
+		KROSsubscriber.nodeNames.append(KROSsubscriber.nodeNames[-1]+1)
+		if self.local_callback is not None:
+			rospy.init_node(self.nodeName, anonymous = True, log_level=rospy.INFO, disable_signals=False)
 		
 		
 		
 		'''
 			Roscore is a singleton class.
 		'''
-		if(!Roscore.__initialised):
-			self.startRoscore()
+		
 		
 	def subscribe(self):
-		rospy.Subscriber(self.topic, String, self.callback)
-		kafka_thread = threading.Thread(target=self.subscriber_cloud)
-		kafka_thread.start()
-		rospy.spin()
+		if self.local_callback is None:
+			try:
+				kafka_thread = threading.Thread(target=self.subscriber_cloud)
+				kafka_thread.start()
+			except KeyboardInterrupt as e:
+				exit(0)
+		elif self.cloudSubscriber is None:
+			try:
+				rospy.Subscriber(self.topic, String, self.local_callback)
+				rospy.spin()
+			except KeyboardInterrupt as e:
+				exit(0)
+		else:
+			try:
+				rospy.Subscriber(self.topic, String, self.local_callback)
+				kafka_thread = threading.Thread(target=self.subscriber_cloud)
+				kafka_thread.start()
+				rospy.spin()
+			except KeyboardInterrupt as e:
+				exit(0)
+			
 	
 	def subscriber_cloud(self):
 		try:
-			for message in consumer:
+			for message in self.cloudSubscriber:
+
 				if message is None:
 					continue
-
+				'''
 				if message.error():
 		# Error occurred while consuming message
 					error = message.error()
 				if error.code() == KafkaError._PARTITION_EOF:
 		# End of partition, continue consuming
 					continue
+				
 				else:
 		# Handle other Kafka errors
 					print('Error: {}'.format(error))
 					break
-
+				'''
 		# Process Kafka message here
-			if(callback is None):
-				print('Received message: {}'.format(message.value.decode('utf-8')))
-			else:
-				self.callback(message)
+				if(self.cloud_callback is None):
+					print('Received message: {}'.format(message.value.decode('utf-8')))
+				else:
+					self.cloud_callback(message)
 
 		except KeyboardInterrupt:
 		# User interrupted the consumer
@@ -123,25 +139,14 @@ class KROSsubscriber:
 
 		finally:
 		# Close Kafka consumer
-			consumer.close()
-	def startRoscore(self):
-		roscore = Roscore()
-		roscore.run()
-	
-	def terminateRoscore(self):
-		roscore.terminate()	
-	
+			self.cloudSubscriber.close()
+
 	def set_topic(self, topic):
 		self.topic = topic
 	
 	def get_topic(self):
 		return self.topic
 	
-	def set_LAN_conf(self, LAN_conf):
-		self.LAN_conf = LAN_conf
-	
-	def get_LAN_conf(self):
-		return self.LAN_conf
 		
 	def set_cloud_conf(self, cloud_conf):
 		self.cloud_conf = cloud_conf
