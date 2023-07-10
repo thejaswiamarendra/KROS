@@ -38,7 +38,7 @@ class KROSpublisher:
 	'''
 	nodeNames = [0] 
 	
-	def __init__(self, cloud_conf = None, topic = None, local_queue_size = 10, msg_class = String):
+	def __init__(self, send_local = False, cloud_conf = None, topic = None, local_queue_size = 10, msg_class = String):
 							
 							
 		'''					
@@ -53,6 +53,7 @@ class KROSpublisher:
 		self.local_queue_size = local_queue_size
 		self.msg_class = msg_class
 		self.cloud_conf = cloud_conf
+		self.send_local = send_local
 		
 		'''
 			Only create a Kafka-Cloud Publisher if cloud_conf is not None. The format for the cloud_conf is given earlier in this file.
@@ -72,20 +73,23 @@ class KROSpublisher:
 			except Exception as e:
 				print("Error while creating cloud Publisher ", e)
 			
-			
-		
-		try:
-			self.localPublisher = rospy.Publisher(self.topic, self.msg_class, queue_size = self.local_queue_size)
-		except Exception as e:
-			print("Error while creating local publisher ", e)
+		self.nodeName = "KROSpub" + str(KROSpublisher.nodeNames[-1])
+		KROSpublisher.nodeNames.append(KROSpublisher.nodeNames[-1]+1)
+		if self.send_local == True:
+			try:
+				self.localPublisher = rospy.Publisher(self.topic, self.msg_class, queue_size = self.local_queue_size)
+			except Exception as e:
+				print("Error while creating local publisher ", e)
+			rospy.init_node(self.nodeName, anonymous = True, log_level=rospy.INFO, disable_signals=False)
+		else:
+			self.localPublisher = None
 	
 		
 		'''
 			Create a unique nodeName using the static list
 		'''
-		self.nodeName = "KROSpub" + str(KROSpublisher.nodeNames[-1])
-		KROSpublisher.nodeNames.append(KROSpublisher.nodeNames[-1]+1)
-		rospy.init_node(self.nodeName, anonymous = True, log_level=rospy.INFO, disable_signals=False)
+		
+		
 		
 		
 		
@@ -102,12 +106,19 @@ class KROSpublisher:
 				print("Error while publishing locally ", e)
 			
 			
+		elif self.localPublisher is None:
+			
+			try: 
+				self.cloudPublisher.send(self.topic, message)
+			except Exception as e:
+				print("Error while publishing over cloud ", e)
 		else:
 			try:
 				rospy.loginfo(message)
 				self.localPublisher.publish(message)
 			except Exception as e:
 				print("Error while publishing locally ", e)
+				
 			try: 
 				self.cloudPublisher.send(self.topic, message)
 			except Exception as e:
@@ -128,4 +139,4 @@ class KROSpublisher:
 
 			
 			
-		
+			
