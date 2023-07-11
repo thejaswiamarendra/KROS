@@ -47,5 +47,17 @@ EXPOSE 9092
 EXPOSE 11311
 EXPOSE 2181
 
+COPY KROSbridge.py /home/KROS/KROSbridge.py
+COPY KROSpublisher.py /home/KROS/KROSpublisher.py
+COPY KROSsubscriber.py /home/KROS/KROSsubscriber.py
+COPY Roscore.py /home/KROS/Roscore.py
+
+COPY roskafka.sh /home/roskafka.sh
+
+WORKDIR /home
+
+RUN chmod +x roskafka.sh
+
+CMD ["./roskafka.sh"]
 # Start roscore, ZooKeeper, and Kafka
-CMD /bin/bash -c "source /opt/ros/kinetic/setup.bash && roscore" & /opt/kafka/bin/zookeeper-server-start.sh /opt/kafka/config/zookeeper.properties & /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties
+# CMD /bin/bash -c "source /opt/ros/kinetic/setup.bash && roscore" & /opt/kafka/bin/zookeeper-server-start.sh /opt/kafka/config/zookeeper.properties & /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties
