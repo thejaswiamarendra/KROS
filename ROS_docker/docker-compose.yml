@@ -1,0 +1,49 @@
+version: '3'
+
+services:
+  master:
+    build:
+      context: ./roscore
+    ports:
+      - 11311:11311
+    container_name: master
+    environment:
+      - ROS_HOSTNAME=master
+      - ROS_MASTER_URI=http://master:11311
+    networks:
+      - master
+    command: bash -c "source ./opt/ros/kinetic/setup.bash && roscore"
+
+  talker:
+    build:
+      context: ./rosproducer
+    container_name: talker
+    depends_on:
+      - master
+    environment:
+      - ROS_HOSTNAME=talker
+      - ROS_MASTER_URI=http://master:11311
+    networks:
+      - master
+    # entrypoint: /bin/bash -c "source /opt/ros/kinetic/setup.bash && rosnode info /rosout && source /rosws/devel/setup.bash && rosrun rospkg producer.py"
+    entrypoint: /bin/bash -c "source /rosws/devel/setup.bash && rosrun rospkg producer.py"
+    restart: always
+
+  listener:
+    build:
+      context: ./rosconsumer
+    container_name: listener
+    depends_on:
+      - master
+    environment:
+      - ROS_HOSTNAME=listener
+      - ROS_MASTER_URI=http://master:11311
+    networks:
+      - master
+    # entrypoint: /bin/bash -c "source /opt/ros/kinetic/setup.bash && rosnode info /rosout && source /rosws/devel/setup.bash && rosrun rospkg consumer.py"
+    entrypoint: /bin/bash -c "source /rosws/devel/setup.bash && rosrun rospkg consumer.py"
+    restart: always
+
+networks:
+  master:
+    driver: bridge
