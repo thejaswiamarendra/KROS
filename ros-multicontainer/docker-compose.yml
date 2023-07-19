@@ -12,6 +12,11 @@ services:
       - ROS_MASTER_URI=http://master:11311
     networks:
       - master
+    healthcheck:
+      test: bash -c "source ./opt/ros/kinetic/setup.bash && rostopic list || exit 1"
+      interval: 10s
+      retries: 10
+      timeout: 10s
     command: bash -c "source ./opt/ros/kinetic/setup.bash && roscore"
 
   talker:
@@ -19,7 +24,8 @@ services:
       context: ./rosproducer
     container_name: talker
     depends_on:
-      - master
+      master:
+        condition: service_healthy
     environment:
       - ROS_HOSTNAME=talker
       - ROS_MASTER_URI=http://master:11311
@@ -34,7 +40,8 @@ services:
       context: ./rosconsumer
     container_name: listener
     depends_on:
-      - master
+      master:
+        condition: service_healthy
     environment:
       - ROS_HOSTNAME=listener
       - ROS_MASTER_URI=http://master:11311

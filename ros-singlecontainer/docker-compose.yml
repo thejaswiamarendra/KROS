@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  master:
+    build:
+      context: ./roscore
+    ports:
+      - 11311:11311
+    container_name: master
+    environment:
+      - ROS_HOSTNAME=master
+      - ROS_MASTER_URI=http://master:11311
+    networks:
+      - master
+    healthcheck:
+      test: bash -c "source ./opt/ros/kinetic/setup.bash && rostopic list || exit 1"
+      interval: 10s
+      retries: 10
+      timeout: 10s
+    command: bash -c "source ./opt/ros/kinetic/setup.bash && roscore"
+
+  pubsub:
+    build:
+      context: ./rosfiles
+    container_name: pubsub
+    depends_on:
+      master:
+        condition: service_healthy
+    environment:
+      - ROS_HOSTNAME=pubsub
+      - ROS_MASTER_URI=http://master:11311
+    networks:
+      - master
+    # entrypoint: /bin/bash -c "source /opt/ros/kinetic/setup.bash && rosnode info /rosout && source /rosws/devel/setup.bash && rosrun rospkg producer.py"
+    entrypoint: /bin/bash -c "./run.sh"
+    restart: always
+
+networks:
+  master:
+    driver: bridge
